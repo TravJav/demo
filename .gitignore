@@ -1,0 +1,5 @@
+api-vgs/.venv/
+api-vgs/.pytest_cache/
+api-vgs/.ruff_cache/
+frontend/node_modules/
+frontend/dist/

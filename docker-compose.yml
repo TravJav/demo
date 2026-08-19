@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-vgs
+    environment:
+      POSTGRES_DB: vgs
+      POSTGRES_USER: vgs
+      POSTGRES_PASSWORD: vgs
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vgs -d vgs"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vgs-network
+
+  api-vgs:
+    build:
+      context: ./api-vgs
+    container_name: api-vgs
+    environment:
+      API_VGS_DATABASE_URL: postgresql+psycopg://vgs:vgs@postgres:5432/vgs
+      API_VGS_ENVIRONMENT: docker
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - vgs-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend-vgs
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5174:5173"
+    depends_on:
+      - api-vgs
+    networks:
+      - vgs-network
+
+networks:
+  vgs-network:
+    name: vgs-network
+    driver: bridge

@@ -1,0 +1,12 @@
+def test_root(client) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "api-vgs is running"
+
+
+def test_health_check(client) -> None:
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
