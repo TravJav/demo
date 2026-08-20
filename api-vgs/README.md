@@ -40,6 +40,10 @@ shipped with the runtime service.
 ## Endpoints
 
 - `GET /health`
+- `POST /charges`
+- `GET /charges/{transaction_id}`
+- `POST /refunds`
+- `GET /reports/ledger/daily`
 - `GET /knowledge-base/processors`
 - `GET /knowledge-base/processors/{processor_name}`
 - `POST /reconcile/transactions/{transaction_id}`
@@ -50,13 +54,23 @@ shipped with the runtime service.
 `POST /vacations` atomically writes the vacation package, flights, hotels, transaction, and
 ledger entry. Ledger rows are append-only.
 
+`POST /charges` is the unified processor-agnostic charge API. It accepts integer minor units,
+requires an `Idempotency-Key` header, routes by currency across mocked Stripely REST and Adyenta
+SOAP adapters, records each processor attempt, and appends a charge ledger entry only when a
+processor succeeds.
+
+`POST /refunds` appends a negative ledger entry against the original transaction, records the refund
+processor attempt, and rejects over-refunds. `GET /reports/ledger/daily?date=YYYY-MM-DD` summarizes
+gross charges, refunds, and net amount by currency from ledger rows.
+
 Ledger entries are signed immutable money movements: charges are positive, refunds are negative,
 and adjustments must be non-zero. Movement-specific processor references live on ledger rows, while
 the transaction keeps the lifecycle status and original processor reference.
 
 Locking stays narrow: reconciliation locks the local transaction row only while updating state and
-appending ledger rows. Processor calls should not run under a database lock; duplicate protection
-comes from idempotency and unique movement references.
+appending ledger rows, and refunds lock the local transaction row while checking remaining refundable
+balance and appending the refund. Processor calls should not run under a database lock in production;
+duplicate protection comes from inbound idempotency keys and unique movement references.
 
 `GET /knowledge-base/processors` exposes the current processor integration knowledge base for
 Stripely and Adyenta, including supported currencies, amount conventions, idempotency behavior,

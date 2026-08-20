@@ -69,6 +69,9 @@ Services:
 - API: `http://localhost:8000`
 - API health: `http://localhost:8000/health`
 - API docs: `http://localhost:8000/docs`
+- Unified charges: `POST http://localhost:8000/charges`
+- Unified refunds: `POST http://localhost:8000/refunds`
+- Daily ledger report: `GET http://localhost:8000/reports/ledger/daily`
 - Processor knowledge base: `http://localhost:8000/knowledge-base/processors`
 - Transaction reconciliation: `POST http://localhost:8000/reconcile/transactions/{transaction_id}`
 - Frontend: `http://localhost:5174`
@@ -80,13 +83,15 @@ memory-backed.
 
 ## API Model
 
-The backend creates five tables from `models.md`:
+The backend creates these tables from `models.md`:
 
 - `vacations`
 - `flights`, with `vacation_id -> vacations.id`
 - `hotels`, with `vacation_id -> vacations.id`
 - `transactions`, with `line_item -> vacations.id`
 - `ledger`, with `transaction_id -> transactions.id`
+- `processor_attempts`, with `transaction_id -> transactions.id`
+- `idempotency_records`, keyed by inbound `Idempotency-Key`
 
 All `id` fields are primary keys. Ledger rows are append-only at the API layer and with a
 Postgres trigger that rejects `UPDATE` and `DELETE`.
@@ -97,8 +102,46 @@ movement-specific, so refund references do not overwrite the transaction's origi
 reference.
 
 The API avoids broad locks. Reconciliation uses a short local transaction-row lock while updating
-state and appending ledger movements; external processor calls should happen outside database locks
-and rely on idempotency keys plus unique movement references.
+state and appending ledger movements. Refunds use the same narrow transaction-row lock to protect
+the remaining refundable balance. External processor calls should happen outside database locks in
+production and rely on idempotency keys plus unique movement references.
+
+Create a unified charge through the payment rails:
+
+```sh
+curl -X POST http://localhost:8000/charges \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: demo-charge-1' \
+  -d '{
+    "amount_minor": 129999,
+    "currency": "USD",
+    "line_item": "Atlas Tokyo Launch",
+    "card": {
+      "number": "4242424242424242",
+      "exp_month": 12,
+      "exp_year": 2030,
+      "cvc": "123"
+    }
+  }'
+```
+
+Refund part of the charge:
+
+```sh
+curl -X POST http://localhost:8000/refunds \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: demo-refund-1' \
+  -d '{
+    "transaction_id": "{transaction_id}",
+    "amount_minor": 5000
+  }'
+```
+
+Summarize ledger volume for a UTC day:
+
+```sh
+curl 'http://localhost:8000/reports/ledger/daily?date=2026-08-20'
+```
 
 Create an atomic vacation checkout:
 

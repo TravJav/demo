@@ -13,6 +13,10 @@ models
 services
     workers
     helpers
+    payments
+    payment_routing
+    processor_adapters
+    reports
     reconciliation
     knowledge_base
     vacation_service
@@ -29,6 +33,8 @@ repos
 routes
     system
     vacations
+    payments
+    reports
     knowledge_base
     reconcile
 
@@ -65,4 +71,5 @@ locking boundary
     no broad application locks
     no database locks around external processor calls
     reconciliation can lock one local transaction row while appending ledger movements
+    refunds can lock one local transaction row while checking remaining refundable balance and appending ledger movements
     duplicate protection should come first from idempotency and unique movement references

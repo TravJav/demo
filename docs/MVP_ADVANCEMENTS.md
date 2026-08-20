@@ -35,8 +35,14 @@ The current implementation follows this split:
 
 - Vacation checkout is handled by `VacationService`, which atomically creates vacation, flight,
   hotel, transaction, and ledger rows.
+- Unified charges and refunds are handled by `PaymentsService`, which enforces inbound
+  idempotency, records processor attempts, appends ledger movements, and protects refund limits.
+- Processor selection is handled by `PaymentRoutingService`, which routes by currency and uses
+  retryable failure metadata from the mocked Stripely REST and Adyenta SOAP adapters.
 - Reconciliation is handled by `ReconcileService`, which updates transaction state and appends
   refund or adjustment ledger entries.
+- Daily ledger totals are handled by `LedgerReportService`, which derives gross charge, refund, and
+  net totals from append-only ledger rows.
 - Processor capability knowledge is handled by `KnowledgeBaseService`, which exposes Stripely and
   Adyenta integration constraints from the supplied specs.
 - Routers under `app/routes/` do not contain transaction blocks or direct ORM queries.
@@ -54,7 +60,8 @@ Transaction rules:
 
 - `amount` is the original positive transaction amount.
 - `currency` is uppercase ISO 4217.
-- `status` is constrained to `pending`, `succeeded`, `failed`, `refused`, `refunded`, or `unknown`.
+- `status` is constrained to `pending`, `succeeded`, `failed`, `refused`,
+  `partially_refunded`, `refunded`, or `unknown`.
 - `processor_reference` is for the original charge or authorization reference, not every later
   movement.
 
@@ -69,6 +76,13 @@ Ledger rules:
   refund id without overwriting the transaction's original charge reference.
 - `(processor, processor_reference)` is unique for non-null movement references.
 - `created_at`, `currency`, and `transaction_id` are indexed for reconciliation and reporting paths.
+
+Supporting model rules:
+
+- `ProcessorAttempt` records each charge or refund attempt against an adapter, including failures
+  and refusals that do not create ledger entries.
+- `IdempotencyRecord` stores the inbound request hash and response body for replaying repeated
+  charge and refund requests without duplicating money movements.
 
 ## Locking Posture
 
@@ -86,9 +100,12 @@ Use locks narrowly:
 - Use the same lock pattern before adding over-refund protection, because that will need to read the
   existing ledger total and append a new refund atomically.
 
-The current MVP follows this posture: reconciliation locks the target transaction row inside the
-service transaction, then appends any ledger movement through the shared-session repository bundle.
-Routes still do not know about locking or transactions.
+The current MVP follows this posture: reconciliation and refunds lock the target transaction row
+inside the service transaction, then append ledger movements through the shared-session repository
+bundle. Charge routing calls the mocked adapters before opening the local write transaction. The
+refund adapter is currently an in-process mock; a real outbound refund call should use a reservation
+or outbox pattern instead of holding a database lock across the network call. Routes still do not
+know about locking or transactions.
 
 ## Route Rules
 
@@ -134,22 +151,29 @@ Repositories keep persistence concerns local:
 - Repositories should not own cross-model workflows.
 - Repositories should not translate errors into HTTP responses.
 
-## MVP Hardening Priorities
+## Implemented Product Slice
 
-1. Add first-class payment charge and refund routes that use processor-agnostic request schemas.
-2. Add processor adapter interfaces for Stripely and Adyenta, with mock implementations matching
-   the provided contracts.
-3. Add a routing service that chooses processors by currency, capability, failure mode, and retry
-   safety.
-4. Add idempotency storage for inbound VGS requests, especially because Adyenta does not support
-   processor-side idempotency.
-5. Extend reconciliation to ingest processor status lookups and normalize external states into local
+- Processor-agnostic `POST /charges` and `POST /refunds` routes.
+- Mocked Stripely REST and Adyenta SOAP adapters behind a shared adapter interface.
+- Currency routing for USD, EUR, and GBP, with retryable failover attempts and hard-decline stop
+  behavior.
+- Inbound idempotency storage for charge and refund requests.
+- Append-only charge and refund ledger movements.
+- Processor attempt audit rows for successful, failed, and refused processor outcomes.
+- Daily ledger reporting through `GET /reports/ledger/daily`.
+
+## Remaining Hardening Priorities
+
+1. Extend reconciliation to ingest processor status lookups and normalize external states into local
    transaction and ledger records.
-6. Add ledger reporting endpoints for net volume, refunds, processor volume, and daily totals.
-7. Add structured audit records for processor attempts, failover decisions, reconciliation updates,
-   and manual adjustments.
-8. Add Alembic migrations before this leaves demo mode; `create_all()` is acceptable only for the
+2. Add richer ledger reports for processor volume, approval rates, refusal rates, and reconciliation
+   drift.
+3. Persist explicit routing decisions if product analytics need to separate "candidate selected"
+   from "processor attempted."
+4. Add Alembic migrations before this leaves demo mode; `create_all()` is acceptable only for the
    current MVP bootstrap.
+5. Move mocked processor behavior behind local HTTP/SOAP test servers if end-to-end contract testing
+   becomes more important than fast unit tests.
 
 ## Acceptance Bar
 
