@@ -36,7 +36,20 @@ flowchart LR
     services --> attempts[Processor attempts]
     services --> ledger[Append-only ledger]
     ledger --> reports[Ledger reports]
+
+    routes --> reconcileRoute[Reconciliation route]
+    reconcileRoute --> reconcileService[Reconciliation service]
+    reconcileService --> repos
+    reconcileService --> ledger
+    reconcileService --> attempts
+    reconcileWorker[Reconciliation worker] -. scheduled or async .-> reconcileService
+    reconcileService --> statusLookup[Processor status lookup]
+    statusLookup --> adapters
 ```
+
+The dotted reconciliation worker path is the extension point for scheduled or
+async reconciliation. The current API path still reconciles through the
+reconciliation service and shared repository/session boundary.
 
 Run it locally:
 
