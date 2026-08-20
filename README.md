@@ -1,4 +1,4 @@
-# VGS Demo
+# Payment Rails Demo
 
 ## Backend
 
@@ -16,6 +16,27 @@ Architecture and MVP hardening rules are documented in
 [`docs/MVP_ADVANCEMENTS.md`](docs/MVP_ADVANCEMENTS.md). In short: routes stay thin,
 dependency wiring constructs a shared-session repository bundle, services own database
 transactions, repositories own ORM access, and ledger changes are append-only.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    client[Client application] --> routes[API routes]
+    routes --> deps[Dependency wiring]
+    deps --> services[Application services]
+    services --> repos[Repository bundle]
+    repos --> session[Shared database session]
+    session --> db[(Relational database)]
+
+    services --> adapters[Processor adapters]
+    adapters --> processorA[Processor rail A]
+    adapters --> processorB[Processor rail B]
+
+    services --> idem[Idempotency records]
+    services --> attempts[Processor attempts]
+    services --> ledger[Append-only ledger]
+    ledger --> reports[Ledger reports]
+```
 
 Run it locally:
 
@@ -127,7 +148,7 @@ curl -X POST http://localhost:8000/charges \
   -d '{
     "amount_minor": 129999,
     "currency": "USD",
-    "line_item": "Atlas Tokyo Launch",
+    "line_item": "Sample package",
     "card": {
       "number": "4242424242424242",
       "exp_month": 12,
@@ -161,7 +182,7 @@ Create an atomic vacation checkout:
 curl -X POST http://localhost:8000/vacations \
   -H 'Content-Type: application/json' \
   -d '{
-    "package_name": "Atlas Tokyo Launch",
+    "package_name": "Sample package",
     "payment": {
       "amount": "1299.99",
       "currency": "USD"
@@ -176,7 +197,7 @@ curl -X POST http://localhost:8000/vacations \
     ],
     "hotels": [
       {
-        "name": "Atlas Shinjuku",
+        "name": "Sample Hotel",
         "booking_number": "HTL-123",
         "reference_number": "HOTEL-ABC"
       }
@@ -201,8 +222,8 @@ curl -X POST http://localhost:8000/reconcile/transactions/{transaction_id} \
   -H 'Content-Type: application/json' \
   -d '{
     "status": "refunded",
-    "processor": "stripely",
-    "processor_reference": "re_1QaB3cD4eF5gH6iJ",
+    "processor": "processor_a",
+    "processor_reference": "refund_ref_123",
     "amount": "50.00",
     "currency": "USD",
     "ledger_entry_type": "refund"
