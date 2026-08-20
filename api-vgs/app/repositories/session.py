@@ -2,7 +2,9 @@ from sqlalchemy.orm import Session
 
 from app.repositories.flights import FlightRepository
 from app.repositories.hotels import HotelRepository
+from app.repositories.idempotency import IdempotencyRepository
 from app.repositories.ledger import LedgerRepository
+from app.repositories.processor_attempts import ProcessorAttemptRepository
 from app.repositories.transactions import TransactionRepository
 from app.repositories.vacations import VacationRepository
 
@@ -12,7 +14,9 @@ class Repositories:
         self.db = db
         self.flights = FlightRepository(db)
         self.hotels = HotelRepository(db)
+        self.idempotency = IdempotencyRepository(db)
         self.ledger = LedgerRepository(db)
+        self.processor_attempts = ProcessorAttemptRepository(db)
         self.transactions = TransactionRepository(db)
         self.vacations = VacationRepository(db)
 
@@ -20,7 +24,9 @@ class Repositories:
         repositories = (
             self.flights,
             self.hotels,
+            self.idempotency,
             self.ledger,
+            self.processor_attempts,
             self.transactions,
             self.vacations,
         )

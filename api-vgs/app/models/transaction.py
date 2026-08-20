@@ -13,6 +13,7 @@ from app.models.enums import TransactionStatus
 
 if TYPE_CHECKING:
     from app.models.ledger import Ledger
+    from app.models.processor_attempt import ProcessorAttempt
     from app.models.vacation import Vacation
 
 
@@ -25,7 +26,8 @@ class Transaction(Base):
             name="ck_transactions_currency_iso_upper",
         ),
         CheckConstraint(
-            "status IN ('pending', 'succeeded', 'failed', 'refused', 'refunded', 'unknown')",
+            "status IN ('pending', 'succeeded', 'failed', 'refused', "
+            "'partially_refunded', 'refunded', 'unknown')",
             name="ck_transactions_status_known",
         ),
     )
@@ -77,4 +79,9 @@ class Transaction(Base):
         "Ledger",
         back_populates="transaction",
         order_by="Ledger.created_at",
+    )
+    processor_attempts: Mapped[list[ProcessorAttempt]] = relationship(
+        "ProcessorAttempt",
+        back_populates="transaction",
+        order_by="ProcessorAttempt.created_at",
     )
