@@ -1,6 +1,8 @@
+import uuid
 from decimal import Decimal
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Ledger, Transaction, Vacation
@@ -87,6 +89,62 @@ def test_ledger_entries_are_append_only(client) -> None:
         ledger.amount = Decimal("1.00")
 
         with pytest.raises(ValueError, match="append-only"):
+            db.commit()
+
+
+def test_ledger_refunds_must_be_negative(client) -> None:
+    response = client.post(
+        "/vacations",
+        json={
+            "package_name": "Atlas Madrid Launch",
+            "payment": {
+                "amount": "100.00",
+                "currency": "USD",
+            },
+        },
+    )
+    assert response.status_code == 201
+    transaction_id = uuid.UUID(response.json()["transaction"]["id"])
+
+    with Session(client.app.state.engine) as db:
+        db.add(
+            Ledger(
+                transaction_id=transaction_id,
+                amount=Decimal("10.00"),
+                currency="USD",
+                entry_type="refund",
+            ),
+        )
+
+        with pytest.raises(IntegrityError):
+            db.commit()
+
+
+def test_ledger_charges_must_be_positive(client) -> None:
+    response = client.post(
+        "/vacations",
+        json={
+            "package_name": "Atlas Osaka Launch",
+            "payment": {
+                "amount": "100.00",
+                "currency": "USD",
+            },
+        },
+    )
+    assert response.status_code == 201
+    transaction_id = uuid.UUID(response.json()["transaction"]["id"])
+
+    with Session(client.app.state.engine) as db:
+        db.add(
+            Ledger(
+                transaction_id=transaction_id,
+                amount=Decimal("-10.00"),
+                currency="USD",
+                entry_type="charge",
+            ),
+        )
+
+        with pytest.raises(IntegrityError):
             db.commit()
 
 

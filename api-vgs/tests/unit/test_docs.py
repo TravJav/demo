@@ -8,6 +8,8 @@ def test_openapi_schema_is_available(client) -> None:
     assert schema["info"]["version"] == "0.1.0"
     assert "/" in schema["paths"]
     assert "/health" in schema["paths"]
+    assert "/knowledge-base/processors" in schema["paths"]
+    assert "/reconcile/transactions/{transaction_id}" in schema["paths"]
     assert "/vacations" in schema["paths"]
 
 
