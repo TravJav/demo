@@ -45,6 +45,11 @@ dependencies
     FastAPI dependency wiring
     database session injection isolated outside route modules
 
+migrations
+    Alembic owns schema changes
+    app startup upgrades the database to head
+    generated revisions must be reviewed before commit
+
 
 tests
     unit tests live under api-vgs/tests/unit

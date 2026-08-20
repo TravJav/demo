@@ -20,7 +20,9 @@ The backend is organized around these layers:
   services from the database session provider. Route modules should depend on service factories from
   here instead of importing `Session` or `get_db` directly.
 - `app/schemas.py`: Pydantic request and response contracts for the public API.
-- `app/database.py`: Engine, session factory, schema initialization, and database-level safeguards.
+- `app/database.py`: Engine, session factory, Alembic migration runner, and database-level
+  safeguards.
+- `migrations/`: Alembic environment and versioned database schema changes.
 - `tests/unit/`: Development-only unit tests. Pytest is configured in `pyproject.toml` to run this
   tree by default.
 
@@ -48,8 +50,10 @@ The current implementation follows this split:
 - Routers under `app/routes/` do not contain transaction blocks or direct ORM queries.
 - Service factories live in `app/dependencies.py`, keeping session wiring outside route modules and
   constructing one `Repositories` bundle per request.
+- Alembic is the schema source of truth; app startup calls the migration runner to upgrade the
+  database to `head`.
 - Ledger entries remain append-only through ORM event guards and the Postgres trigger installed by
-  `init_db()`.
+  the initial Alembic migration.
 
 ## Ledger Model
 
@@ -161,6 +165,7 @@ Repositories keep persistence concerns local:
 - Append-only charge and refund ledger movements.
 - Processor attempt audit rows for successful, failed, and refused processor outcomes.
 - Daily ledger reporting through `GET /reports/ledger/daily`.
+- Alembic migrations for the current schema, including the Postgres append-only ledger trigger.
 
 ## Remaining Hardening Priorities
 
@@ -170,9 +175,7 @@ Repositories keep persistence concerns local:
    drift.
 3. Persist explicit routing decisions if product analytics need to separate "candidate selected"
    from "processor attempted."
-4. Add Alembic migrations before this leaves demo mode; `create_all()` is acceptable only for the
-   current MVP bootstrap.
-5. Move mocked processor behavior behind local HTTP/SOAP test servers if end-to-end contract testing
+4. Move mocked processor behavior behind local HTTP/SOAP test servers if end-to-end contract testing
    becomes more important than fast unit tests.
 
 ## Acceptance Bar

@@ -22,6 +22,7 @@ Run it locally:
 ```sh
 cd api-vgs
 uv sync
+uv run alembic upgrade head
 uv run fastapi dev app/main.py
 ```
 
@@ -33,6 +34,7 @@ Checks:
 cd api-vgs
 uv run pytest
 uv run ruff check .
+uv run alembic check
 ```
 
 `api-vgs` keeps unit tests under `tests/unit`; `pyproject.toml` points pytest there, so
@@ -81,6 +83,11 @@ Compose defines the shared `vgs-network` bridge network for all containers. The 
 service stores `/var/lib/postgresql/data` on `tmpfs`, so database state is ephemeral and
 memory-backed.
 
+The API image copies `alembic.ini` and `migrations/`, and app startup runs Alembic to bring the
+database to `head`. For manual local migration work, run
+`uv run alembic revision --autogenerate -m "describe change"` from `api-vgs`, review the generated
+revision, then apply it with `uv run alembic upgrade head`.
+
 ## API Model
 
 The backend creates these tables from `models.md`:
@@ -93,8 +100,8 @@ The backend creates these tables from `models.md`:
 - `processor_attempts`, with `transaction_id -> transactions.id`
 - `idempotency_records`, keyed by inbound `Idempotency-Key`
 
-All `id` fields are primary keys. Ledger rows are append-only at the API layer and with a
-Postgres trigger that rejects `UPDATE` and `DELETE`.
+All `id` fields are primary keys. The schema is managed by Alembic migrations. Ledger rows are
+append-only at the API layer and with a Postgres trigger that rejects `UPDATE` and `DELETE`.
 
 Ledger rows are signed money movements tied to a transaction: charges are positive, refunds are
 negative, and adjustments must be non-zero. Processor references on ledger rows are

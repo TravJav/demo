@@ -12,6 +12,7 @@ instead of mutating history.
 
 ```sh
 uv sync
+uv run alembic upgrade head
 uv run fastapi dev app/main.py
 ```
 
@@ -27,15 +28,21 @@ docker compose up postgres
 ```sh
 uv run pytest
 uv run ruff check .
+uv run alembic check
 ```
+
+`uv run alembic upgrade head` applies schema migrations using `API_VGS_DATABASE_URL`.
+`uv run alembic revision --autogenerate -m "describe change"` creates the next migration from the
+SQLAlchemy model diff; review generated migrations before committing them.
 
 Unit tests live under `tests/unit`, and `uv run pytest` picks that up from
 `[tool.pytest.ini_options]` in `pyproject.toml`. Test-only tools are in the `test` dependency group;
 the `dev` group is the superset that includes both `test` and `lint`.
 
 Tests are part of the development toolchain only. The Docker image runs `uv sync --no-dev`, copies
-only `app/`, and `.dockerignore` excludes `tests/`, so unit tests and test dependencies are not
-shipped with the runtime service.
+only `app/`, `alembic.ini`, and `migrations/`, and `.dockerignore` excludes `tests/`, so unit tests
+and test dependencies are not shipped with the runtime service. Alembic is a runtime dependency
+because the API applies migrations on startup.
 
 ## Endpoints
 
