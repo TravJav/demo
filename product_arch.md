@@ -79,3 +79,14 @@ locking boundary
     reconciliation can lock one local transaction row while appending ledger movements
     refunds can lock one local transaction row while checking remaining refundable balance and appending ledger movements
     duplicate protection should come first from idempotency and unique movement references
+
+
+production runtime
+    API runs on ECS Fargate behind an Application Load Balancer
+    load balancer health checks target GET /health with explicit healthy and unhealthy thresholds
+    ECS autoscaling uses CloudWatch thresholds such as ALB request count per target, target response time, CPU, memory, and HTTP 5xx rate
+    reconciliation stays outside the request path
+    Lambda is acceptable for small bounded reconciliation jobs that fit comfortably inside the 15-minute invocation limit
+    prefer an EventBridge-scheduled ECS Fargate Celery worker for larger record sets, backfills, or uncertain processor latency
+    Terraform manages the cloud resources as infrastructure as code
+    Terraform owns VPC/networking, ECS, ALB, autoscaling, alarms, EventBridge schedules, queue or broker resources, IAM, secrets, logs, and database dependencies

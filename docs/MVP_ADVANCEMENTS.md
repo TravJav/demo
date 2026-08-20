@@ -55,6 +55,27 @@ The current implementation follows this split:
 - Ledger entries remain append-only through ORM event guards and the Postgres trigger installed by
   the initial Alembic migration.
 
+## Production Runtime And Infrastructure
+
+Production should run the API as an ECS Fargate service behind an Application Load Balancer. The
+load balancer target group should health-check `GET /health` and use explicit healthy and unhealthy
+thresholds. ECS service autoscaling should use CloudWatch-backed thresholds such as ALB request
+count per target, target response time, CPU, memory, and HTTP 5xx rate. Threshold values should be
+environment-specific configuration, not application code.
+
+Reconciliation should stay outside the request/response path. A Lambda reconciliation job is
+acceptable when the record set is small, bounded, and comfortably finishes within Lambda's
+15-minute invocation timeout. For larger record sets, backfills, or uncertain processor latency, the
+preferred runtime is an EventBridge-scheduled ECS Fargate Celery worker. EventBridge owns the
+schedule, while the worker processes reconciliation in batches with retry and checkpoint behavior so
+long-running work is not constrained by the Lambda invocation window.
+
+Infrastructure should be managed with Terraform in this context. Terraform should own the VPC and
+networking, ECS cluster, task definitions, services, ALB listeners and target groups, autoscaling
+policies, alarms, EventBridge schedules, queue or broker resources, IAM roles, secrets, logging, and
+database dependencies. Environment differences should flow through Terraform variables or modules
+so the infrastructure remains reviewable as code.
+
 ## Ledger Model
 
 The ledger is the immutable money-movement history. `Transaction` is the lifecycle anchor for a

@@ -51,6 +51,22 @@ The dotted reconciliation worker path is the extension point for scheduled or
 async reconciliation. The current API path still reconciles through the
 reconciliation service and shared repository/session boundary.
 
+## Production Runtime
+
+The production API should run as an ECS Fargate service behind an Application Load Balancer. The
+ALB target group should health-check `GET /health` and use explicit healthy/unhealthy thresholds;
+ECS autoscaling should be driven by CloudWatch metrics such as ALB request count per target, target
+response time, CPU, memory, and HTTP 5xx rate.
+
+Reconciliation should run outside the HTTP request path. Lambda is acceptable for small, bounded
+reconciliation jobs that comfortably fit inside the 15-minute invocation limit. For larger record
+sets, backfills, or uncertain processor latency, prefer an EventBridge-scheduled ECS Fargate Celery
+worker so reconciliation can run in batches without Lambda's runtime cap.
+
+Terraform should manage the infrastructure for this context: VPC/networking, ECS services and task
+definitions, ALB listeners and target groups, autoscaling, alarms, EventBridge schedules, queue or
+broker resources, IAM, secrets, logs, and database dependencies.
+
 Run it locally:
 
 ```sh
