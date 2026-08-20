@@ -2,10 +2,11 @@ import uuid
 from decimal import Decimal
 
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.models import Ledger, LineItem, Transaction, Vacation
+from app.models import Flight, Hotel, Ledger, LineItem, Transaction, Vacation
+from app.repositories.ledger import LedgerRepository
 
 
 def test_create_vacation_checkout_persists_atomic_package(client) -> None:
@@ -167,3 +168,46 @@ def test_checkout_persists_all_expected_tables(client) -> None:
         assert db.query(LineItem).count() == 1
         assert db.query(Transaction).count() == 1
         assert db.query(Ledger).count() == 1
+
+
+def test_checkout_rolls_back_when_late_write_fails(client, monkeypatch) -> None:
+    def fail_ledger_add(self: LedgerRepository, ledger: Ledger) -> Ledger:
+        raise SQLAlchemyError("forced ledger failure")
+
+    monkeypatch.setattr(LedgerRepository, "add", fail_ledger_add)
+
+    response = client.post(
+        "/vacations",
+        json={
+            "package_name": "Atlas Kyoto Rollback",
+            "payment": {
+                "amount": "899.00",
+                "currency": "USD",
+            },
+            "flights": [
+                {
+                    "name": "Outbound",
+                    "flight_number": "VG202",
+                    "reference_number": "FLT-ROLLBACK",
+                    "seat": "14C",
+                }
+            ],
+            "hotels": [
+                {
+                    "name": "Atlas Kyoto",
+                    "booking_number": "HTL-ROLLBACK",
+                    "reference_number": "HOTEL-ROLLBACK",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 500
+
+    with Session(client.app.state.engine) as db:
+        assert db.query(Vacation).count() == 0
+        assert db.query(Flight).count() == 0
+        assert db.query(Hotel).count() == 0
+        assert db.query(LineItem).count() == 0
+        assert db.query(Transaction).count() == 0
+        assert db.query(Ledger).count() == 0
