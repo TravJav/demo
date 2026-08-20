@@ -28,6 +28,7 @@ repos
     each model has its own dedicated repo that is specific to the respective model
     to avoid diffs, contamination of logic but also to separate concerns and practice good code hygiene
     repositories used by one use case are created from one shared Session object
+    line_items is the payment-facing item anchor; transactions do not point directly at vacation rows
 
 
 routes

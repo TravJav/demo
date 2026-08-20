@@ -95,13 +95,18 @@ The backend creates these tables from `models.md`:
 - `vacations`
 - `flights`, with `vacation_id -> vacations.id`
 - `hotels`, with `vacation_id -> vacations.id`
-- `transactions`, with `line_item -> vacations.id`
+- `line_items`, with optional `vacation_id -> vacations.id`
+- `transactions`, with `line_item_id -> line_items.id`
 - `ledger`, with `transaction_id -> transactions.id`
 - `processor_attempts`, with `transaction_id -> transactions.id`
 - `idempotency_records`, keyed by inbound `Idempotency-Key`
 
 All `id` fields are primary keys. The schema is managed by Alembic migrations. Ledger rows are
 append-only at the API layer and with a Postgres trigger that rejects `UPDATE` and `DELETE`.
+
+Line items hold the merchant-facing item/reference being paid for. Vacation checkout can attach a
+line item back to a vacation package, but unified payment charges no longer need to create vacation
+rows just to satisfy a payment FK.
 
 Ledger rows are signed money movements tied to a transaction: charges are positive, refunds are
 negative, and adjustments must be non-zero. Processor references on ledger rows are

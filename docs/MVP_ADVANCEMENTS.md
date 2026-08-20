@@ -36,7 +36,7 @@ so every repository write in a use case participates in the same atomic transact
 The current implementation follows this split:
 
 - Vacation checkout is handled by `VacationService`, which atomically creates vacation, flight,
-  hotel, transaction, and ledger rows.
+  hotel, line-item, transaction, and ledger rows.
 - Unified charges and refunds are handled by `PaymentsService`, which enforces inbound
   idempotency, records processor attempts, appends ledger movements, and protects refund limits.
 - Processor selection is handled by `PaymentRoutingService`, which routes by currency and uses
@@ -60,10 +60,16 @@ The current implementation follows this split:
 The ledger is the immutable money-movement history. `Transaction` is the lifecycle anchor for a
 payment attempt; `Ledger` records the financial movements tied to that transaction.
 
+`LineItem` is the merchant-facing item/reference being paid for. It is intentionally separate from
+`Vacation`: vacation checkout can attach a line item back to a vacation package, but a generic VGS
+charge can use a caller reference without creating travel-domain rows.
+
 Transaction rules:
 
 - `amount` is the original positive transaction amount.
 - `currency` is uppercase ISO 4217.
+- `line_item_id` points to `LineItem`; the public `line_item` value is the line item's external
+  reference.
 - `status` is constrained to `pending`, `succeeded`, `failed`, `refused`,
   `partially_refunded`, `refunded`, or `unknown`.
 - `processor_reference` is for the original charge or authorization reference, not every later

@@ -66,6 +66,9 @@ requires an `Idempotency-Key` header, routes by currency across mocked Stripely 
 SOAP adapters, records each processor attempt, and appends a charge ledger entry only when a
 processor succeeds.
 
+Charges create first-class line-item records from the caller's `line_item` reference. They do not
+create vacation package rows unless the request is going through the vacation checkout API.
+
 `POST /refunds` appends a negative ledger entry against the original transaction, records the refund
 processor attempt, and rejects over-refunds. `GET /reports/ledger/daily?date=YYYY-MM-DD` summarizes
 gross charges, refunds, and net amount by currency from ledger rows.
