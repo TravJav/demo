@@ -3,6 +3,7 @@ name = "api-vgs"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.19.1",
     "fastapi[standard]>=0.141.1",
     "psycopg[binary]>=3.3.4",
     "pydantic-settings>=2.15.0",
@@ -10,14 +11,21 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
+test = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
+]
+lint = [
     "ruff>=0.16.3",
+]
+dev = [
+    {include-group = "test"},
+    {include-group = "lint"},
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+testpaths = ["tests/unit"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

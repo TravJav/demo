@@ -1,13 +1,16 @@
 from collections.abc import Generator
+from pathlib import Path
 
-from sqlalchemy import Engine, create_engine, text
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.config import get_settings
-from app.models import Base
 
 settings = get_settings()
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def create_db_engine(database_url: str) -> Engine:
@@ -32,37 +35,20 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 
 
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
-    install_ledger_append_only_trigger(engine)
+    run_migrations(engine)
 
 
-def install_ledger_append_only_trigger(bind: Engine) -> None:
-    if bind.dialect.name != "postgresql":
-        return
+def get_alembic_config() -> Config:
+    config = Config(PROJECT_ROOT / "alembic.ini")
+    config.set_main_option("sqlalchemy.url", settings.database_url)
+    return config
 
-    statements = [
-        """
-        CREATE OR REPLACE FUNCTION prevent_ledger_mutation()
-        RETURNS trigger AS $$
-        BEGIN
-            RAISE EXCEPTION 'ledger entries are append-only';
-        END;
-        $$ LANGUAGE plpgsql
-        """,
-        """
-        DROP TRIGGER IF EXISTS prevent_ledger_update ON ledger
-        """,
-        """
-        CREATE TRIGGER prevent_ledger_update
-        BEFORE UPDATE OR DELETE ON ledger
-        FOR EACH ROW
-        EXECUTE FUNCTION prevent_ledger_mutation()
-        """,
-    ]
 
+def run_migrations(bind: Engine) -> None:
+    config = get_alembic_config()
     with bind.begin() as connection:
-        for statement in statements:
-            connection.execute(text(statement))
+        config.attributes["connection"] = connection
+        command.upgrade(config, "head")
 
 
 def get_db() -> Generator[Session]:
