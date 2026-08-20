@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.database import engine, init_db
-from app.routes import knowledge_base, reconcile, system, vacations
+from app.routes import knowledge_base, payments, reconcile, reports, system, vacations
 
 settings = get_settings()
 
@@ -31,6 +31,14 @@ tags_metadata = [
         "description": "Processor capability profiles derived from integration specs.",
     },
     {
+        "name": "payments",
+        "description": "Unified charge and refund APIs across processor rails.",
+    },
+    {
+        "name": "reports",
+        "description": "Ledger-based operational reports.",
+    },
+    {
         "name": "reconcile",
         "description": "Record reconciliation and append-only ledger adjustments.",
     },
@@ -53,5 +61,7 @@ app = FastAPI(
 
 app.include_router(system.router)
 app.include_router(vacations.router)
+app.include_router(payments.router)
+app.include_router(reports.router)
 app.include_router(knowledge_base.router)
 app.include_router(reconcile.router)

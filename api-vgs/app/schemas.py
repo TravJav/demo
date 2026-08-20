@@ -1,10 +1,15 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models import LedgerEntryType, TransactionStatus
+from app.models import (
+    LedgerEntryType,
+    PaymentOperation,
+    ProcessorAttemptStatus,
+    TransactionStatus,
+)
 
 
 class FlightCreate(BaseModel):
@@ -96,6 +101,71 @@ class VacationCheckoutRead(BaseModel):
     vacation: VacationRead
     transaction: TransactionRead
     ledger: LedgerRead
+
+
+class CardCreate(BaseModel):
+    number: str = Field(min_length=12, max_length=23)
+    exp_month: int = Field(ge=1, le=12)
+    exp_year: int = Field(ge=2000, le=2100)
+    cvc: str = Field(min_length=3, max_length=4)
+
+
+class ChargeCreate(BaseModel):
+    amount_minor: int = Field(gt=0)
+    currency: str = Field(min_length=3, max_length=3)
+    line_item: str = Field(min_length=1, max_length=255)
+    card: CardCreate
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        return value.upper()
+
+
+class RefundCreate(BaseModel):
+    transaction_id: uuid.UUID
+    amount_minor: int | None = Field(default=None, gt=0)
+
+
+class ProcessorAttemptRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    transaction_id: uuid.UUID
+    processor: str
+    operation: PaymentOperation
+    status: ProcessorAttemptStatus
+    processor_reference: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+    created_at: datetime
+
+
+class ChargeRead(BaseModel):
+    transaction: TransactionRead
+    ledger: LedgerRead | None = None
+    attempts: list[ProcessorAttemptRead]
+    line_item: str
+    idempotency_key: str
+
+
+class RefundRead(BaseModel):
+    transaction: TransactionRead
+    ledger: LedgerRead
+    attempts: list[ProcessorAttemptRead]
+    idempotency_key: str
+
+
+class LedgerCurrencySummaryRead(BaseModel):
+    currency: str
+    charges_minor: int
+    refunds_minor: int
+    net_minor: int
+
+
+class LedgerDailySummaryRead(BaseModel):
+    date: date
+    currencies: list[LedgerCurrencySummaryRead]
 
 
 class TransactionReconcileUpdate(BaseModel):
