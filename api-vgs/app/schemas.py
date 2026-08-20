@@ -75,7 +75,8 @@ class TransactionRead(BaseModel):
     id: uuid.UUID
     amount: Decimal
     currency: str
-    line_item: uuid.UUID
+    line_item: str
+    line_item_id: uuid.UUID
     psp_ref: uuid.UUID
     processor: str | None = None
     processor_reference: str | None = None

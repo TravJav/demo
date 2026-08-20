@@ -1,6 +1,13 @@
 from sqlalchemy.orm import Session
 
-from app.models import IdempotencyRecord, Ledger, ProcessorAttempt, Transaction
+from app.models import (
+    IdempotencyRecord,
+    Ledger,
+    LineItem,
+    ProcessorAttempt,
+    Transaction,
+    Vacation,
+)
 
 
 def charge_payload(
@@ -32,6 +39,8 @@ def test_charge_uses_unified_api_and_replays_idempotently(client) -> None:
 
     body = response.json()
     assert body["transaction"]["amount"] == "12.34"
+    assert body["transaction"]["line_item"] == "Atlas unified payment"
+    assert body["line_item"] == "Atlas unified payment"
     assert body["transaction"]["status"] == "succeeded"
     assert body["transaction"]["processor"] == "stripely"
     assert body["ledger"]["entry_type"] == "charge"
@@ -48,6 +57,8 @@ def test_charge_uses_unified_api_and_replays_idempotently(client) -> None:
 
     with Session(client.app.state.engine) as db:
         assert db.query(Transaction).count() == 1
+        assert db.query(LineItem).count() == 1
+        assert db.query(Vacation).count() == 0
         assert db.query(Ledger).count() == 1
         assert db.query(ProcessorAttempt).count() == 1
         assert db.query(IdempotencyRecord).count() == 1

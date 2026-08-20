@@ -12,12 +12,12 @@ from app.models import (
     IdempotencyRecord,
     Ledger,
     LedgerEntryType,
+    LineItem,
     PaymentOperation,
     ProcessorAttempt,
     ProcessorAttemptStatus,
     Transaction,
     TransactionStatus,
-    Vacation,
 )
 from app.repositories import Repositories
 from app.schemas import (
@@ -108,8 +108,12 @@ class PaymentsService:
 
         try:
             with self.repositories.db.begin():
-                vacation = self.repositories.vacations.add(
-                    Vacation(package_name=payload.line_item),
+                line_item = self.repositories.line_items.add(
+                    LineItem(
+                        external_reference=payload.line_item,
+                        source="payment_api",
+                        description=payload.line_item,
+                    ),
                 )
                 self.repositories.db.flush()
 
@@ -117,7 +121,7 @@ class PaymentsService:
                     Transaction(
                         amount=amount,
                         currency=payload.currency,
-                        line_item=vacation.id,
+                        line_item_record=line_item,
                         processor=processor,
                         processor_reference=(
                             winning_result.processor_reference if winning_result else None
@@ -181,7 +185,7 @@ class PaymentsService:
             attempts=self.repositories.processor_attempts.list_for_transaction(
                 transaction.id,
             ),
-            line_item=transaction.vacation.package_name,
+            line_item=transaction.line_item,
             idempotency_key="",
         )
 

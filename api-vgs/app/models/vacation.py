@@ -12,7 +12,7 @@ from app.models.base import Base, utc_now
 if TYPE_CHECKING:
     from app.models.flight import Flight
     from app.models.hotel import Hotel
-    from app.models.transaction import Transaction
+    from app.models.line_item import LineItem
 
 
 class Vacation(Base):
@@ -40,7 +40,7 @@ class Vacation(Base):
         back_populates="vacation",
         cascade="all, delete-orphan",
     )
-    transactions: Mapped[list[Transaction]] = relationship(
-        "Transaction",
+    line_items: Mapped[list[LineItem]] = relationship(
+        "LineItem",
         back_populates="vacation",
     )

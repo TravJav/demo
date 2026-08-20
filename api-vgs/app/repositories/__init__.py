@@ -2,6 +2,7 @@ from app.repositories.flights import FlightRepository
 from app.repositories.hotels import HotelRepository
 from app.repositories.idempotency import IdempotencyRepository
 from app.repositories.ledger import LedgerRepository
+from app.repositories.line_items import LineItemRepository
 from app.repositories.processor_attempts import ProcessorAttemptRepository
 from app.repositories.session import Repositories
 from app.repositories.transactions import TransactionRepository
@@ -12,6 +13,7 @@ __all__ = [
     "HotelRepository",
     "IdempotencyRepository",
     "LedgerRepository",
+    "LineItemRepository",
     "ProcessorAttemptRepository",
     "Repositories",
     "TransactionRepository",

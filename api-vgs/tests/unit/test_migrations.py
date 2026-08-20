@@ -21,6 +21,7 @@ def test_database_bootstrap_uses_alembic_head() -> None:
         "hotels",
         "idempotency_records",
         "ledger",
+        "line_items",
         "processor_attempts",
         "transactions",
         "vacations",

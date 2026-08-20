@@ -20,6 +20,7 @@ def test_repository_bundle_shares_one_database_session() -> None:
         assert repositories.hotels.db is db
         assert repositories.idempotency.db is db
         assert repositories.ledger.db is db
+        assert repositories.line_items.db is db
         assert repositories.processor_attempts.db is db
         assert repositories.transactions.db is db
         assert repositories.vacations.db is db

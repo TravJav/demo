@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Ledger, Transaction, Vacation
+from app.models import Ledger, LineItem, Transaction, Vacation
 
 
 def test_create_vacation_checkout_persists_atomic_package(client) -> None:
@@ -46,6 +46,7 @@ def test_create_vacation_checkout_persists_atomic_package(client) -> None:
     assert len(vacation["flights"]) == 1
     assert len(vacation["hotels"]) == 1
     assert transaction["line_item"] == vacation["id"]
+    assert transaction["line_item_id"] != vacation["id"]
     assert transaction["psp_ref"]
     assert transaction["status"] == "succeeded"
     assert ledger["transaction_id"] == transaction["id"]
@@ -163,5 +164,6 @@ def test_checkout_persists_all_expected_tables(client) -> None:
 
     with Session(client.app.state.engine) as db:
         assert db.query(Vacation).count() == 1
+        assert db.query(LineItem).count() == 1
         assert db.query(Transaction).count() == 1
         assert db.query(Ledger).count() == 1

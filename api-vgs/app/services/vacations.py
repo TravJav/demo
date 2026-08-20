@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.models import Flight, Hotel, Ledger, Transaction, Vacation
+from app.models import Flight, Hotel, Ledger, LineItem, Transaction, Vacation
 from app.repositories import Repositories
 from app.schemas import VacationCheckoutCreate
 
@@ -39,6 +39,16 @@ class VacationService:
                 )
                 self.repositories.db.flush()
 
+                line_item = self.repositories.line_items.add(
+                    LineItem(
+                        external_reference=str(vacation.id),
+                        source="vacation_checkout",
+                        description=payload.package_name,
+                        vacation_id=vacation.id,
+                    ),
+                )
+                self.repositories.db.flush()
+
                 vacation.flights = self.repositories.flights.add_all(
                     [
                         Flight(vacation_id=vacation.id, **flight.model_dump())
@@ -56,7 +66,7 @@ class VacationService:
                     Transaction(
                         amount=payload.payment.amount,
                         currency=payload.payment.currency,
-                        line_item=vacation.id,
+                        line_item_record=line_item,
                     ),
                 )
                 self.repositories.db.flush()

@@ -9,6 +9,7 @@ from app.models.flight import Flight
 from app.models.hotel import Hotel
 from app.models.idempotency import IdempotencyRecord
 from app.models.ledger import Ledger
+from app.models.line_item import LineItem
 from app.models.processor_attempt import ProcessorAttempt
 from app.models.transaction import Transaction
 from app.models.vacation import Vacation
@@ -20,6 +21,7 @@ __all__ = [
     "IdempotencyRecord",
     "Ledger",
     "LedgerEntryType",
+    "LineItem",
     "PaymentOperation",
     "ProcessorAttempt",
     "ProcessorAttemptStatus",

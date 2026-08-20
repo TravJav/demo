@@ -13,8 +13,8 @@ from app.models.enums import TransactionStatus
 
 if TYPE_CHECKING:
     from app.models.ledger import Ledger
+    from app.models.line_item import LineItem
     from app.models.processor_attempt import ProcessorAttempt
-    from app.models.vacation import Vacation
 
 
 class Transaction(Base):
@@ -39,9 +39,9 @@ class Transaction(Base):
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
-    line_item: Mapped[uuid.UUID] = mapped_column(
+    line_item_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("vacations.id"),
+        ForeignKey("line_items.id"),
         nullable=False,
         index=True,
     )
@@ -74,7 +74,10 @@ class Transaction(Base):
         nullable=True,
     )
 
-    vacation: Mapped[Vacation] = relationship("Vacation", back_populates="transactions")
+    line_item_record: Mapped[LineItem] = relationship(
+        "LineItem",
+        back_populates="transactions",
+    )
     ledger_entries: Mapped[list[Ledger]] = relationship(
         "Ledger",
         back_populates="transaction",
@@ -85,3 +88,7 @@ class Transaction(Base):
         back_populates="transaction",
         order_by="ProcessorAttempt.created_at",
     )
+
+    @property
+    def line_item(self) -> str:
+        return self.line_item_record.external_reference
